@@ -186,17 +186,20 @@ Term generator expanded with `Sigma`, `Pair`, `Fst`, `Snd`. All 7 properties hol
 
 ## Milestone 3 Validation: Path Type + J Eliminator
 
-### M3 Audit (7 checks)
+### M3 Audit (10 checks)
 
 | # | Check | Location | Status |
 |---|-------|----------|--------|
-| 1 | Path-Form: `Path A a b : U ℓ` where `A : U ℓ` | Check.hs: `inferUniverse ctx a` → aLvl, returns `VU aLvl` | ✓ Match |
-| 2 | Path-Intro: `refl a : Path (typeof a) a a` | Check.hs: infers `tTy`, returns `VPathT tTy tVal tVal` (endpoints equal) | ✓ Match |
-| 3 | J-β: `vJ _ _ _ d _ (VRefl _) = d` | Value.hs: pattern match on VRefl returns d directly | ✓ Match |
-| 4 | J typing: all 6 args checked, motive has 2 binders | Check.hs: ctx extended twice (y:A, p:Path A a y), C checked in ctx2 | ✓ Correct |
-| 5 | J result type: `C[y ↦ b, p ↦ q]` | Check.hs: `evalTerm (pVal : bVal : ctxEnv ctx) c` — index 0=q, index 1=b | ✓ Correct |
-| 6 | Conv: PathT/Refl/NJ all handled | Conv.hs: VPathT checks 3 components, VRefl checks arg, NJ checks all 6 + Closure2 | ✓ Complete |
-| 7 | Quote: PathT/Refl/NJ all handled | Quote.hs: VPathT/VRefl quoted directly; NJ instantiates Closure2 with 2 fresh vars | ✓ Correct |
+| 1 | Path-Form: returns `VU aLvl` | Check.hs:107 | ✓ Match |
+| 2 | Path-Intro: `VPathT tTy tVal tVal` (endpoints equal) | Check.hs:116 | ✓ Match |
+| 3 | J-β: `vJ _ _ _ d _ (VRefl _) = d` | Value.hs:109 | ✓ Match |
+| 4 | J stuck: `VNeutral (NJ ...)` on neutral path | Value.hs:110 | ✓ Match |
+| 5 | Closure2: motive stored as `Closure2 env c` (not eval'd) | Value.hs:132 | ✓ Correct |
+| 6 | instantiate2: `evalTerm (v2:v1:env)` → idx0=p, idx1=y | Value.hs:65 | ✓ Correct |
+| 7 | d's type: `eval (reflA:aVal:ctxEnv) c` | Check.hs:143 | ✓ Correct |
+| 8 | result type: `eval (pVal:bVal:ctxEnv) c` | Check.hs:154 | ✓ Correct |
+| 9 | Quote NJ: freshY@lvl, freshP@lvl+1, quote@lvl+2 | Quote.hs:50-53 | ✓ Correct |
+| 10 | Conv NJ: same fresh vars for both Closure2s @lvl+2 | Conv.hs:93-95 | ✓ Correct |
 
 **Key design decision verified**: J's motive `C` is stored as `Closure2` (unevaluated term + env), not as a `Val`. This avoids wrong de Bruijn indexing when C has 2 pending binders. Instantiation via `instantiate2 (Closure2 env t) v1 v2 = evalTerm (v2 : v1 : env) t` correctly binds index 0 = p, index 1 = y.
 
@@ -206,7 +209,7 @@ Term generator expanded with `Sigma`, `Pair`, `Fst`, `Snd`. All 7 properties hol
 
 **No bugs found.**
 
-### M3 Test summary: 18/18 passed
+### M3 Test summary: 24/24 passed
 
 | Category | Count |
 |----------|-------|
@@ -217,7 +220,16 @@ Term generator expanded with `Sigma`, `Pair`, `Fst`, `Snd`. All 7 properties hol
 | J type checking (positive + negative) | 2 |
 | Conversion | 3 |
 | Quote round-trip | 2 |
-| **Total** | **18** |
+| M3 validation additional | 6 |
+| **Total** | **24** |
+
+M3 validation additional tests:
+- Transport along neutral path stays stuck (NJ)
+- J with wrong path endpoints rejected
+- J with b of wrong type rejected
+- J with non-type motive rejected
+- `refl (U 0) /= refl (U 1)` (different refl not convertible)
+- J stuck term eval-quote-eval roundtrip
 
 ### M3 Property tests: 7/7 passed
 
@@ -227,4 +239,4 @@ Term generator expanded with `PathT`, `Refl`, `J` (J only at depth ≥ 3, motive
 
 ## Conclusion
 
-The Pont kernel (M1 + M2 + M3) is **correct** with respect to KERNEL.md for Π + Σ + Path + J + Universe. No bugs found across any milestone. 96 total tests (47 M1 + 24 M2 + 18 M3 + 7 property) all pass. The kernel is ready for Milestone 4 (Univalence axiom + ua-β computation rule).
+The Pont kernel (M1 + M2 + M3) is **correct** with respect to KERNEL.md for Π + Σ + Path + J + Universe. No bugs found across any milestone. 102 total tests (47 M1 + 24 M2 + 24 M3 + 7 property) all pass. The kernel is ready for Milestone 4 (Univalence axiom + ua-β computation rule).

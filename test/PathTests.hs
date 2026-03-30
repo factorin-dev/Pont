@@ -227,6 +227,76 @@ test_quote_refl = test "quote roundtrip: Refl (U 0)" $
   quote 0 (eval [] (Refl (U 0))) == Refl (U 0)
 
 -- ============================================================
+-- M3 Validation: additional tests
+-- ============================================================
+
+test_transport_neutral, test_j_wrong_path_type :: IO Bool
+test_j_wrong_endpoint, test_j_motive_nontype :: IO Bool
+test_refl_noconv, test_j_quote_roundtrip :: IO Bool
+
+-- | transport along neutral path stays stuck (NJ)
+test_transport_neutral = test "transport along neutral path is stuck NJ" $
+  let ctx1 = bind emptyCtx (VU 0)               -- A : U 0 (lvl 0)
+      ctx2 = bind ctx1 (VNeutral (NVar 0))      -- a : A (lvl 1)
+      ctx3 = bind ctx2 (VNeutral (NVar 0))      -- b : A (lvl 2)
+      pathTy = VPathT (VNeutral (NVar 0)) (VNeutral (NVar 1)) (VNeutral (NVar 2))
+      ctx4 = bind ctx3 pathTy                     -- p : Path A a b (lvl 3)
+      -- J A a (λy_.A) a b p  (transport with constant family)
+      -- Var 3=A, Var 2=a, C=Var5(=A under 2 extra), d=Var2(=a), Var1=b, Var0=p
+      jTerm = J (Var 3) (Var 2) (Var 5) (Var 2) (Var 1) (Var 0)
+  in case eval (ctxEnv ctx4) jTerm of
+      VNeutral (NJ {}) -> True
+      _ -> False
+
+-- | J with wrong path type (path endpoints don't match) rejected
+test_j_wrong_path_type = test "J with wrong path endpoints rejected" $
+  let ctx1 = bind emptyCtx (VU 0)               -- A : U 0
+      ctx2 = bind ctx1 (VNeutral (NVar 0))      -- a : A
+      ctx3 = bind ctx2 (VNeutral (NVar 0))      -- b : A
+      -- Try: J A a C d b (refl b) — refl b : Path A b b, but J expects Path A a b
+      -- This should fail because refl b has endpoints (b,b), not (a,b)
+      jTerm = J (Var 2) (Var 1) (Var 4) (Var 1) (Var 0) (Refl (Var 0))
+  in isLeft (infer ctx3 jTerm)
+
+-- | J with wrong endpoint b (b not of type A) rejected
+test_j_wrong_endpoint = test "J with b of wrong type rejected" $
+  let ctx1 = bind emptyCtx (VU 0)               -- A : U 0
+      ctx2 = bind ctx1 (VU 0)                    -- B : U 0
+      ctx3 = bind ctx2 (VNeutral (NVar 0))      -- a : A
+      ctx4 = bind ctx3 (VNeutral (NVar 1))      -- x : B
+      -- J A a C d x (refl a): x : B, but b should be : A
+      -- In ctx4: Var 3=A, Var 2=B, Var 1=a, Var 0=x
+      jTerm = J (Var 3) (Var 1) (Var 5) (Var 1) (Var 0) (Refl (Var 1))
+  in isLeft (infer ctx4 jTerm)
+
+-- | J with motive that is not a type rejected
+test_j_motive_nontype = test "J with non-type motive rejected" $
+  let ctx1 = bind emptyCtx (VU 0)
+      ctx2 = bind ctx1 (VNeutral (NVar 0))
+      -- C = Var 1 (= y under 2 extra binders), but y : A which is not U
+      -- inferUniverse on C should fail because C's type is A, not U _
+      jTerm = J (Var 1) (Var 0) (Var 1) (Var 0) (Var 0) (Refl (Var 0))
+  in isLeft (infer ctx2 jTerm)
+
+-- | Two refl with different args are NOT convertible
+test_refl_noconv = test "refl (U 0) /= refl (U 1)" $
+  not (conv 0 (VRefl (VU 0)) (VRefl (VU 1)))
+
+-- | J term eval-quote-eval roundtrip (stuck J)
+test_j_quote_roundtrip = test "J stuck term: eval-quote-eval roundtrip" $
+  let ctx1 = bind emptyCtx (VU 0)
+      ctx2 = bind ctx1 (VNeutral (NVar 0))
+      ctx3 = bind ctx2 (VNeutral (NVar 0))
+      pathTy = VPathT (VNeutral (NVar 0)) (VNeutral (NVar 1)) (VNeutral (NVar 2))
+      ctx4 = bind ctx3 pathTy
+      jTerm = J (Var 3) (Var 2) (Var 5) (Var 2) (Var 1) (Var 0)
+      v1  = eval (ctxEnv ctx4) jTerm
+      nf1 = quote 4 v1
+      v2  = eval (ctxEnv ctx4) nf1
+      nf2 = quote 4 v2
+  in nf1 == nf2
+
+-- ============================================================
 -- All tests
 -- ============================================================
 
@@ -247,4 +317,8 @@ allTests =
   , test_path_conv, test_path_noconv, test_refl_conv
   -- Quote (2)
   , test_quote_path, test_quote_refl
+  -- M3 validation additional (6)
+  , test_transport_neutral, test_j_wrong_path_type
+  , test_j_wrong_endpoint, test_j_motive_nontype
+  , test_refl_noconv, test_j_quote_roundtrip
   ]
