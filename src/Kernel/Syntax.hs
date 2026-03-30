@@ -1,3 +1,10 @@
+-- | Kernel.Syntax — Raw terms with de Bruijn indices.
+--
+-- Implements: Section 1 (Raw Syntax) of KERNEL.md
+-- Only the Milestone 1 subset: U, Var, Π, λ, App.
+--
+-- Convention: de Bruijn index 0 = most recently bound variable.
+-- Levels are used in the value domain (Value.hs); indices here.
 module Kernel.Syntax where
 
 -- | De Bruijn index (bound variables in terms)
@@ -10,6 +17,13 @@ type Lvl = Int
 type ULvl = Int
 
 -- | Raw terms. This is the full syntax tree that the type checker operates on.
+--
+-- Implements (term formers from Section 1):
+--   U ℓ             → U ULvl
+--   x               → Var Ix
+--   Π (x : A) . B   → Pi Term Term
+--   λ (x : A) . t   → Lam Term      (domain NOT stored; checked against Pi type)
+--   t u              → App Term Term
 data Term
   = Var Ix              -- Variable (de Bruijn index)
   | U ULvl              -- Universe

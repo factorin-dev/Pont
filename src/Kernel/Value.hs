@@ -1,12 +1,19 @@
+-- | Kernel.Value — Semantic domain for Normalization by Evaluation (NbE).
+--
+-- Implements: Section 10 (NbE Sketch) of KERNEL.md
+-- Values are the result of evaluating terms. Functions become closures.
+-- A value is either a canonical form (VU, VPi, VLam) or a neutral
+-- (computation stuck on a free variable).
 module Kernel.Value where
 
 import Kernel.Syntax (Lvl, ULvl, Term(..))
 
--- | Environment: list of values, indexed by de Bruijn index
+-- | Environment: list of values, indexed by de Bruijn index.
 -- The most recently bound variable is at the head (index 0).
 type Env = [Val]
 
--- | Closure: a term body + the environment it was evaluated under
+-- | Closure: a term body + the environment it was evaluated under.
+-- Represents a binder waiting for an argument.
 data Closure = Closure Env Term
 
 -- We derive Show manually to avoid infinite loops
@@ -14,6 +21,12 @@ instance Show Closure where
   show (Closure _ t) = "Closure{" ++ show t ++ "}"
 
 -- | Values (canonical forms or stuck computations)
+--
+-- Implements (value forms from Section 10):
+--   VU ℓ           — Universe value
+--   VPi A (x.B)    — Π type: domain value + closure for codomain
+--   VLam (x.t)     — Lambda: closure for body
+--   VNeutral n     — Stuck computation (blocked on a variable)
 data Val
   = VU ULvl                    -- Universe value
   | VPi Val Closure            -- Π type: domain value + closure for codomain
@@ -22,26 +35,40 @@ data Val
   deriving (Show)
 
 -- | Neutral values (computations stuck on a variable)
+--
+-- Implements (neutral forms from Section 10):
+--   NVar x         — A free variable (de Bruijn level)
+--   NApp n v       — Application stuck on neutral function
 data Neutral
   = NVar Lvl                   -- A free variable (de Bruijn level)
   | NApp Neutral Val           -- Application stuck on neutral function
   deriving (Show)
 
--- | Apply a closure to a value
+-- | Instantiate a closure with a value.
+-- Implements substitution: given closure (env, t) and value v,
+-- evaluates t in the extended environment (v : env).
 instantiate :: Closure -> Val -> Val
 instantiate (Closure env t) v = evalTerm (v : env) t
 
--- | Apply a value to an argument
+-- | Apply a value to an argument.
+--
+-- Implements: Π-β (Section 4)
+--   (λ (x : A) . t) u  ≡  t[x ↦ u]
+-- For VLam: triggers β-reduction via closure instantiation.
+-- For VNeutral: builds a stuck application NApp.
 vApp :: Val -> Val -> Val
 vApp (VLam cl)    arg = instantiate cl arg
 vApp (VNeutral n) arg = VNeutral (NApp n arg)
 vApp _            _   = error "vApp: not a function"
 
--- | Evaluation function — defined here to avoid circular imports.
--- This is the core NbE evaluator.
+-- | Evaluate a term under an environment.
+--
+-- Implements: Evaluation (Section 10)
+-- All β-reductions happen eagerly here. The key invariant:
+-- a value is either canonical or neutral (stuck on a variable).
 evalTerm :: Env -> Term -> Val
 evalTerm env term = case term of
-  Var ix  -> env !! ix
+  Var ix  -> env !! ix    -- look up by de Bruijn index from head
   U lvl   -> VU lvl
   Pi a b  -> VPi (evalTerm env a) (Closure env b)
   Lam t   -> VLam (Closure env t)

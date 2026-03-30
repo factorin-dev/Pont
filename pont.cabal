@@ -37,9 +37,13 @@ executable pont
 test-suite pont-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
+  other-modules:
+    Exhaustive
+    Properties
   build-depends:
     base >= 4.17 && < 5,
-    pont
+    pont,
+    QuickCheck >= 2.14
   hs-source-dirs: test
   default-language: Haskell2010
   ghc-options: -Wall
