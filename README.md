@@ -53,12 +53,6 @@ src/Kernel/
 
 See [docs/KERNEL.md](docs/KERNEL.md) for the full kernel specification — the mathematical rules this type checker implements.
 
-## Part of the Factorin ecosystem
-
-- **Pont** — Type checker (this repo)
-- **Lean4Quant** — DeFi quantitative finance library (will migrate to Pont)
-- **Astrolabe** — Mathematical knowledge network visualization
-
 ## License
 
 MIT
