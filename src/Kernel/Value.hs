@@ -2,7 +2,7 @@
 --
 -- Implements: Section 10 (NbE Sketch) of KERNEL.md
 -- Values are the result of evaluating terms. Functions become closures.
--- A value is either a canonical form (VU, VPi, VLam) or a neutral
+-- A value is either a canonical form (VU, VPi, VLam, VSigma, VPair) or a neutral
 -- (computation stuck on a free variable).
 module Kernel.Value where
 
@@ -31,6 +31,8 @@ data Val
   = VU ULvl                    -- Universe value
   | VPi Val Closure            -- Π type: domain value + closure for codomain
   | VLam Closure               -- Lambda: closure for body
+  | VSigma Val Closure         -- Σ type: domain value + closure for codomain
+  | VPair Val Val              -- Pair value: (a, b)
   | VNeutral Neutral           -- Stuck computation
   deriving (Show)
 
@@ -42,6 +44,8 @@ data Val
 data Neutral
   = NVar Lvl                   -- A free variable (de Bruijn level)
   | NApp Neutral Val           -- Application stuck on neutral function
+  | NFst Neutral               -- fst stuck on neutral pair
+  | NSnd Neutral               -- snd stuck on neutral pair
   deriving (Show)
 
 -- | Instantiate a closure with a value.
@@ -61,6 +65,24 @@ vApp (VLam cl)    arg = instantiate cl arg
 vApp (VNeutral n) arg = VNeutral (NApp n arg)
 vApp _            _   = error "vApp: not a function"
 
+-- | First projection.
+--
+-- Implements: Σ-β₁ (Section 5)
+--   fst (a, b) ≡ a
+vFst :: Val -> Val
+vFst (VPair a _) = a
+vFst (VNeutral n) = VNeutral (NFst n)
+vFst _ = error "vFst: not a pair"
+
+-- | Second projection.
+--
+-- Implements: Σ-β₂ (Section 5)
+--   snd (a, b) ≡ b
+vSnd :: Val -> Val
+vSnd (VPair _ b) = b
+vSnd (VNeutral n) = VNeutral (NSnd n)
+vSnd _ = error "vSnd: not a pair"
+
 -- | Evaluate a term under an environment.
 --
 -- Implements: Evaluation (Section 10)
@@ -72,4 +94,8 @@ evalTerm env term = case term of
   U lvl   -> VU lvl
   Pi a b  -> VPi (evalTerm env a) (Closure env b)
   Lam t   -> VLam (Closure env t)
-  App f a -> vApp (evalTerm env f) (evalTerm env a)
+  App f a   -> vApp (evalTerm env f) (evalTerm env a)
+  Sigma a b -> VSigma (evalTerm env a) (Closure env b)
+  Pair a b  -> VPair (evalTerm env a) (evalTerm env b)
+  Fst t     -> vFst (evalTerm env t)
+  Snd t     -> vSnd (evalTerm env t)

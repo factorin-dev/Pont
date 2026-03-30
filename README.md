@@ -8,10 +8,12 @@ Pont is a type checker — it takes a program and a type specification, and answ
 
 ## Status
 
-**Milestone 1** (current): Π-types + Universes only. A ~500 line Haskell type checker that handles dependent functions and universe levels.
+**Milestone 2** (current): Σ-types added. Can define dependent pairs, projections, and product types.
+
+Completed:
+- Milestone 1: Π-types + Universes
 
 Upcoming:
-- Milestone 2: Σ-types (dependent pairs)
 - Milestone 3: Path types + J eliminator
 - Milestone 4: Univalence axiom + ua-β computation rule
 - Milestone 5: Financial semantics layer (Token, Amount, equivalences)

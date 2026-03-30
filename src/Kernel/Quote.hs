@@ -26,6 +26,11 @@ quote lvl val = case val of
   VLam cl        ->
     let body = quote (lvl + 1) (instantiate cl (VNeutral (NVar lvl)))
     in Lam body
+  VSigma a cl    ->
+    let va = quote lvl a
+        vb = quote (lvl + 1) (instantiate cl (VNeutral (NVar lvl)))
+    in Sigma va vb
+  VPair a b      -> Pair (quote lvl a) (quote lvl b)
   VNeutral n     -> quoteNeutral lvl n
 
 -- | Quote a neutral value back to a term.
@@ -37,3 +42,5 @@ quoteNeutral :: Lvl -> Neutral -> Term
 quoteNeutral lvl neu = case neu of
   NVar x   -> Var (lvl - x - 1)   -- Convert level back to index
   NApp n v -> App (quoteNeutral lvl n) (quote lvl v)
+  NFst n   -> Fst (quoteNeutral lvl n)
+  NSnd n   -> Snd (quoteNeutral lvl n)

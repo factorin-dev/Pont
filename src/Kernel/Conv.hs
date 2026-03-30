@@ -3,7 +3,7 @@
 -- Implements: Section 9 (Definitional Equality / Conversion) of KERNEL.md
 -- Two values are convertible if they reduce to the same normal form.
 -- Since values are already evaluated (β-reduced), we compare structurally
--- with η-expansion for functions.
+-- with η-expansion for functions and pairs.
 module Kernel.Conv where
 
 import Kernel.Syntax (Lvl)
@@ -47,6 +47,26 @@ conv lvl v1 v2 = case (v1, v2) of
     let fresh = VNeutral (NVar lvl)
     in conv (lvl + 1) (vApp v fresh) (instantiate cl fresh)
 
+  -- | Implements: Congruence for Σ types (same structure as Π)
+  (VSigma a1 cl1, VSigma a2 cl2) ->
+    conv lvl a1 a2 &&
+    let fresh = VNeutral (NVar lvl)
+    in conv (lvl + 1) (instantiate cl1 fresh) (instantiate cl2 fresh)
+
+  -- | Implements: Congruence for pairs (structural)
+  (VPair a1 b1, VPair a2 b2) ->
+    conv lvl a1 a2 && conv lvl b1 b2
+
+  -- | Implements: Σ-η (Section 5)
+  --   t ≡ (fst t, snd t)    (if t : Σ (x : A) . B)
+  -- A pair is equal to a non-pair if projections match.
+  (VPair pa pb, other) ->
+    conv lvl pa (vFst other) && conv lvl pb (vSnd other)
+
+  -- | Implements: Σ-η (symmetric case)
+  (other, VPair pa pb) ->
+    conv lvl (vFst other) pa && conv lvl (vSnd other) pb
+
   -- | Neutral-neutral: compare structurally
   (VNeutral n1, VNeutral n2) -> convNeutral lvl n1 n2
 
@@ -58,4 +78,6 @@ convNeutral :: Lvl -> Neutral -> Neutral -> Bool
 convNeutral lvl n1 n2 = case (n1, n2) of
   (NVar x, NVar y)           -> x == y
   (NApp f1 a1, NApp f2 a2)   -> convNeutral lvl f1 f2 && conv lvl a1 a2
+  (NFst m1, NFst m2)         -> convNeutral lvl m1 m2
+  (NSnd m1, NSnd m2)         -> convNeutral lvl m1 m2
   _                           -> False

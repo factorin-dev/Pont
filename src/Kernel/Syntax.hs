@@ -1,7 +1,8 @@
 -- | Kernel.Syntax — Raw terms with de Bruijn indices.
 --
 -- Implements: Section 1 (Raw Syntax) of KERNEL.md
--- Only the Milestone 1 subset: U, Var, Π, λ, App.
+-- Milestone 1: U, Var, Π, λ, App.
+-- Milestone 2: Σ, Pair, Fst, Snd.
 --
 -- Convention: de Bruijn index 0 = most recently bound variable.
 -- Levels are used in the value domain (Value.hs); indices here.
@@ -24,10 +25,18 @@ type ULvl = Int
 --   Π (x : A) . B   → Pi Term Term
 --   λ (x : A) . t   → Lam Term      (domain NOT stored; checked against Pi type)
 --   t u              → App Term Term
+--   Σ (x : A) . B   → Sigma Term Term
+--   (a , b)          → Pair Term Term
+--   fst t            → Fst Term
+--   snd t            → Snd Term
 data Term
   = Var Ix              -- Variable (de Bruijn index)
   | U ULvl              -- Universe
   | Pi Term Term        -- Π (x : A) . B — first is domain, second is codomain (binds one var)
   | Lam Term            -- λ . t — the domain type is NOT stored here, only the body (binds one var)
   | App Term Term       -- Application
+  | Sigma Term Term     -- Σ (x : A) . B — dependent pair type (binds one var)
+  | Pair Term Term      -- (a, b) — pair introduction
+  | Fst Term            -- First projection
+  | Snd Term            -- Second projection
   deriving (Show, Eq)

@@ -28,26 +28,38 @@ genTerm depth scope = frequency $
   [(3, Var <$> choose (0, scope - 1)) | scope > 0] ++
   [(2, Pi <$> genTerm (depth-1) scope <*> genTerm (depth-1) (scope+1))] ++
   [(2, Lam <$> genTerm (depth-1) (scope+1))] ++
-  [(2, App <$> genTerm (depth-1) scope <*> genTerm (depth-1) scope)]
+  [(2, App <$> genTerm (depth-1) scope <*> genTerm (depth-1) scope)] ++
+  [(2, Sigma <$> genTerm (depth-1) scope <*> genTerm (depth-1) (scope+1))] ++
+  [(2, Pair <$> genTerm (depth-1) scope <*> genTerm (depth-1) scope)] ++
+  [(1, Fst <$> genTerm (depth-1) scope)] ++
+  [(1, Snd <$> genTerm (depth-1) scope)]
 
 instance Arbitrary Term where
   arbitrary = sized $ \n -> genTerm (min n 5) 0
-  shrink (Pi a b)  = [a, b] ++ [Pi a' b | a' <- shrink a] ++ [Pi a b' | b' <- shrink b]
-  shrink (Lam t)   = [t] ++ [Lam t' | t' <- shrink t]
-  shrink (App f a) = [f, a] ++ [App f' a | f' <- shrink f] ++ [App f a' | a' <- shrink a]
-  shrink (U n)     = [U n' | n' <- shrink n, n' >= 0]
-  shrink (Var _)   = []
+  shrink (Pi a b)    = [a, b] ++ [Pi a' b | a' <- shrink a] ++ [Pi a b' | b' <- shrink b]
+  shrink (Lam t)     = [t] ++ [Lam t' | t' <- shrink t]
+  shrink (App f a)   = [f, a] ++ [App f' a | f' <- shrink f] ++ [App f a' | a' <- shrink a]
+  shrink (Sigma a b) = [a, b] ++ [Sigma a' b | a' <- shrink a] ++ [Sigma a b' | b' <- shrink b]
+  shrink (Pair a b)  = [a, b] ++ [Pair a' b | a' <- shrink a] ++ [Pair a b' | b' <- shrink b]
+  shrink (Fst t)     = [t] ++ [Fst t' | t' <- shrink t]
+  shrink (Snd t)     = [t] ++ [Snd t' | t' <- shrink t]
+  shrink (U n)       = [U n' | n' <- shrink n, n' >= 0]
+  shrink (Var _)     = []
 
 -- ============================================================
 -- Helper: check all Var indices in a term are within scope
 -- ============================================================
 
 allVarsInScope :: Int -> Term -> Bool
-allVarsInScope bound (Var ix)    = ix >= 0 && ix < bound
-allVarsInScope _     (U _)       = True
-allVarsInScope bound (Pi a b)    = allVarsInScope bound a && allVarsInScope (bound + 1) b
-allVarsInScope bound (Lam t)     = allVarsInScope (bound + 1) t
-allVarsInScope bound (App f a)   = allVarsInScope bound f && allVarsInScope bound a
+allVarsInScope bound (Var ix)      = ix >= 0 && ix < bound
+allVarsInScope _     (U _)         = True
+allVarsInScope bound (Pi a b)      = allVarsInScope bound a && allVarsInScope (bound + 1) b
+allVarsInScope bound (Lam t)       = allVarsInScope (bound + 1) t
+allVarsInScope bound (App f a)     = allVarsInScope bound f && allVarsInScope bound a
+allVarsInScope bound (Sigma a b)   = allVarsInScope bound a && allVarsInScope (bound + 1) b
+allVarsInScope bound (Pair a b)    = allVarsInScope bound a && allVarsInScope bound b
+allVarsInScope bound (Fst t)       = allVarsInScope bound t
+allVarsInScope bound (Snd t)       = allVarsInScope bound t
 
 -- | Check if a term is well-typed in the empty context.
 -- Used to guard properties that need well-typed terms (eval won't crash).

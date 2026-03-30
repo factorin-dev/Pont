@@ -39,6 +39,7 @@ test-suite pont-test
   main-is: Main.hs
   other-modules:
     Exhaustive
+    Sigma
     Properties
   build-depends:
     base >= 4.17 && < 5,
