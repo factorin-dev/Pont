@@ -1,0 +1,9 @@
+-- Pont example: polymorphic identity function
+-- This is pseudocode for now; real parser comes later.
+--
+-- Type: Π (A : U 0) . Π (x : A) . A
+-- Term: λ A . λ x . x
+--
+-- In de Bruijn notation:
+--   type = Pi (U 0) (Pi (Var 0) (Var 1))
+--   term = Lam (Lam (Var 0))

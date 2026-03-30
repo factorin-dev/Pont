@@ -1,0 +1,45 @@
+cabal-version:      3.0
+name:               pont
+version:            0.1.0.0
+synopsis:           A minimal HoTT type checker for verified DeFi
+license:            MIT
+license-file:       LICENSE
+author:             Xinze Li
+maintainer:         xbryanli.li@mail.utoronto.ca
+category:           Language
+build-type:         Simple
+
+library
+  exposed-modules:
+    Kernel.Syntax
+    Kernel.Value
+    Kernel.Eval
+    Kernel.Quote
+    Kernel.Conv
+    Kernel.Check
+    Kernel.Context
+    Kernel.Kernel
+  build-depends:
+    base >= 4.17 && < 5
+  hs-source-dirs: src
+  default-language: Haskell2010
+  ghc-options: -Wall
+
+executable pont
+  main-is: Main.hs
+  build-depends:
+    base >= 4.17 && < 5,
+    pont
+  hs-source-dirs: app
+  default-language: Haskell2010
+  ghc-options: -Wall
+
+test-suite pont-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  build-depends:
+    base >= 4.17 && < 5,
+    pont
+  hs-source-dirs: test
+  default-language: Haskell2010
+  ghc-options: -Wall
