@@ -130,10 +130,58 @@ Compared against `AndrasKovacs/elaboration-zoo` `02-typecheck-closures-debruijn`
 
 2. **Termination**: The kernel has no fixpoint/recursion, so all well-typed terms terminate. But `eval` on ill-typed terms could theoretically loop (e.g., with a self-applying closure constructed via unsafe means). In practice this can't happen from the type checker.
 
-3. **Η for Pi only**: The conversion checker handles η for functions (Π-η). When Σ-types are added (M2), Σ-η will need to be added to `conv`.
+3. **Error messages**: `TypeError` values contain `Val`s which are hard to read (closures). Better error formatting is an elaboration concern.
 
-4. **Error messages**: `TypeError` values contain `Val`s which are hard to read (closures). Better error formatting is an elaboration concern.
+---
+
+## Milestone 2 Validation: Σ-Types
+
+### M2 Audit (7 checks)
+
+| # | Check | Location | Status |
+|---|-------|----------|--------|
+| 1 | Σ-Form: `max(ℓ₁, ℓ₂)` | Check.hs:74 `VU (max aLvl bLvl)` | ✓ Match |
+| 2 | Σ-β₁: `vFst (VPair a _) = a` | Value.hs:73 | ✓ Match |
+| 3 | Σ-β₂: `vSnd (VPair _ b) = b` | Value.hs:82 | ✓ Match |
+| 4 | Σ-η: both directions in `conv` | Conv.hs:63 `(VPair, other)` + Conv.hs:67 `(other, VPair)` | ✓ Match |
+| 5 | Σ-Intro: Pair case before wildcard | Check.hs:124 before fallback at :135 | ✓ Correct |
+| 6 | Σ-snd type `B[x ↦ fst t]` | Check.hs:95 `instantiate cl (vFst tVal)` | ✓ Match |
+| 7 | Quote VSigma/VPair symmetric with VPi/VLam | Quote.hs:29–33 same closure pattern | ✓ Correct |
+
+**No bugs found.** All Σ-type code matches KERNEL.md Section 5.
+
+### M2 Known limitations
+
+- **Σ-η is not type-directed**: If both sides are `VNeutral`, conversion compares structurally. Two different neutrals `p` and `q` with `fst p ≡ fst q` and `snd p ≡ snd q` will NOT be recognized as equal unless one side is a `VPair`. Full Σ-η requires type-directed conversion, deferred to a future upgrade.
+
+### M2 Test summary: 24/24 passed
+
+| Category | Count |
+|----------|-------|
+| Formation | 3 |
+| Introduction (positive + negative) | 3 |
+| Projections (positive + negative) | 4 |
+| β-reduction | 3 |
+| η-conversion | 2 |
+| Quote round-trip | 2 |
+| Product type | 1 |
+| Integration (proto-equiv) | 1 |
+| Inference rejection | 1 |
+| M2 validation additional | 4 |
+| **Total** | **24** |
+
+Additional validation tests:
+- 3-layer nested Sigma formation with correct universe level
+- Deep projection chain `fst(fst p)`, `fst(snd p)`
+- Pair checked against Pi type → rejected
+- Lambda checked against Sigma type → rejected
+
+### M2 Property tests: 7/7 passed
+
+Term generator expanded with `Sigma`, `Pair`, `Fst`, `Snd`. All 7 properties hold over 1000+ random inputs including Σ-type terms.
+
+### M2 Regression: 47/47 M1 tests still pass
 
 ## Conclusion
 
-The Pont kernel (M1) is **correct** with respect to KERNEL.md for its implemented scope (Π + Universe). No bugs were found. All 47 exhaustive tests and 7 property tests (7000+ random inputs) pass. Cross-reference with elaboration-zoo confirms structural correctness. The kernel is ready for Milestone 2 (Σ-types).
+The Pont kernel (M1 + M2) is **correct** with respect to KERNEL.md for Π + Σ + Universe. No bugs found across either milestone. 78 total tests (47 M1 exhaustive + 24 M2 Σ + 7 property) all pass. The kernel is ready for Milestone 3 (Path types + J eliminator).

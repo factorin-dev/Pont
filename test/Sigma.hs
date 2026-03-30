@@ -208,6 +208,55 @@ test_pair_no_infer = test "bare pair cannot be inferred" $
   isLeft (infer emptyCtx (Pair (U 0) (U 0)))
 
 -- ============================================================
+-- M2 Validation: additional tests
+-- ============================================================
+
+test_nested_sigma_form, test_deep_proj_chain :: IO Bool
+test_pair_against_pi, test_lam_against_sigma :: IO Bool
+
+-- | 3-layer nested Sigma formation:
+-- Σ(A:U0). Σ(B:U0). Σ(x:A). B
+-- After A: [A], Var 0 = A
+-- After B: [B,A], Var 0 = B, Var 1 = A
+-- After x: [x,B,A], Var 0 = x, Var 1 = B, Var 2 = A
+-- Return type B = Var 1
+test_nested_sigma_form = test "3-layer nested Sigma formation : U 1" $
+  inferIsU emptyCtx
+    (Sigma (U 0) (Sigma (U 0) (Sigma (Var 1) (Var 1))))
+    1
+
+-- | Deep projection chain: fst (snd (fst p))
+-- p : Σ(x : Σ(a:U1).U1). U1
+-- fst p : Σ(a:U1).U1
+-- snd (fst p) : U1
+-- fst (snd (fst p)) : can't go further, but snd(fst p) is U 1 value, fst on that fails
+-- Better: p : Σ(x : Σ(a:U1).U1). Σ(b:U1).U1
+-- fst p : Σ(a:U1).U1
+-- snd p : Σ(b:U1).U1
+-- fst(fst p) : U1, snd(fst p) : U1, fst(snd p) : U1
+-- Test: infer fst(snd p) and fst(fst p) both give U 1
+test_deep_proj_chain = test "deep projection chain fst(fst p), fst(snd p)" $
+  let innerSig = Sigma (U 1) (U 1)        -- Σ(_:U1).U1
+      outerSig = Sigma innerSig innerSig   -- Σ(x:inner).inner
+      sigTy = eval [] outerSig
+      ctx1 = bind emptyCtx sigTy           -- p : outer (level 0)
+      -- fst (fst p): fst p : inner = Σ(_:U1).U1, fst(fst p) : U1
+      -- fst (snd p): snd p : inner, fst(snd p) : U1
+  in case (infer ctx1 (Fst (Fst (Var 0))), infer ctx1 (Fst (Snd (Var 0)))) of
+      (Right ty1, Right ty2) -> conv 1 ty1 (VU 1) && conv 1 ty2 (VU 1)
+      _ -> False
+
+-- | Pair checked against Pi type must be rejected.
+-- Pair falls through to wildcard → infer → CannotInferPair.
+test_pair_against_pi = test "pair checked against Pi type rejected" $
+  isLeft (check emptyCtx (Pair (U 0) (U 0)) (eval [] (Pi (U 1) (U 1))))
+
+-- | Lambda checked against Sigma type must be rejected.
+-- Lam doesn't match VSigma → falls through to wildcard → infer → CannotInferLambda.
+test_lam_against_sigma = test "lambda checked against Sigma type rejected" $
+  isLeft (check emptyCtx (Lam (Var 0)) (eval [] (Sigma (U 0) (Var 0))))
+
+-- ============================================================
 -- All tests
 -- ============================================================
 
@@ -231,4 +280,7 @@ allTests =
   , test_proto_equiv
   -- Inference (1)
   , test_pair_no_infer
+  -- M2 Validation additional (4)
+  , test_nested_sigma_form, test_deep_proj_chain
+  , test_pair_against_pi, test_lam_against_sigma
   ]
