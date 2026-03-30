@@ -95,6 +95,65 @@ infer ctx term = case term of
         Right (instantiate cl (vFst tVal))
       other -> Left (NotASigma other)
 
+  -- | Implements: Path-Form (Section 6)
+  --   Γ ⊢ A : U ℓ    Γ ⊢ a : A    Γ ⊢ b : A
+  --  ────────────────────────────────────────────
+  --          Γ ⊢ Path A a b : U ℓ
+  PathT a t u -> do
+    aLvl <- inferUniverse ctx a
+    let aVal = evalTerm (ctxEnv ctx) a
+    check ctx t aVal
+    check ctx u aVal
+    Right (VU aLvl)
+
+  -- | Implements: Path-Intro (Section 6)
+  --        Γ ⊢ a : A
+  --  ──────────────────────────
+  --   Γ ⊢ refl a : Path A a a
+  Refl t -> do
+    tTy <- infer ctx t
+    let tVal = evalTerm (ctxEnv ctx) t
+    Right (VPathT tTy tVal tVal)
+
+  -- | Implements: J (Section 6)
+  --   Γ ⊢ A : U ℓ
+  --   Γ ⊢ a : A
+  --   Γ, y : A, p : Path A a y ⊢ C : U ℓ'
+  --   Γ ⊢ d : C[y ↦ a, p ↦ refl a]
+  --   Γ ⊢ b : A
+  --   Γ ⊢ q : Path A a b
+  --  ──────────────────────────────────
+  --   Γ ⊢ J A a C d b q : C[y ↦ b, p ↦ q]
+  J tyA a c d b p -> do
+    _aLvl <- inferUniverse ctx tyA
+    let tyAVal = evalTerm (ctxEnv ctx) tyA
+
+    check ctx a tyAVal
+    let aVal = evalTerm (ctxEnv ctx) a
+
+    -- Motive C: in context extended with y : A and p : Path A a y
+    let ctx1   = bind ctx tyAVal
+        yVar   = VNeutral (NVar (ctxLvl ctx))
+        pathTy = VPathT tyAVal aVal yVar
+        ctx2   = bind ctx1 pathTy
+    _cLvl <- inferUniverse ctx2 c
+
+    -- Base case d : C[y ↦ a, p ↦ refl a]
+    let reflA = VRefl aVal
+        dTy   = evalTerm (reflA : aVal : ctxEnv ctx) c
+    check ctx d dTy
+
+    check ctx b tyAVal
+    let bVal = evalTerm (ctxEnv ctx) b
+
+    let expectedPathTy = VPathT tyAVal aVal bVal
+    check ctx p expectedPathTy
+
+    -- Result: C[y ↦ b, p ↦ q]
+    let pVal     = evalTerm (ctxEnv ctx) p
+        resultTy = evalTerm (pVal : bVal : ctxEnv ctx) c
+    Right resultTy
+
   -- | Lambda cannot be inferred — it must be checked against a known Π type.
   Lam _ -> Left CannotInferLambda
 

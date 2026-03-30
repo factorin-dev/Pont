@@ -3,6 +3,7 @@
 -- Implements: Section 1 (Raw Syntax) of KERNEL.md
 -- Milestone 1: U, Var, Π, λ, App.
 -- Milestone 2: Σ, Pair, Fst, Snd.
+-- Milestone 3: Path, Refl, J.
 --
 -- Convention: de Bruijn index 0 = most recently bound variable.
 -- Levels are used in the value domain (Value.hs); indices here.
@@ -39,4 +40,7 @@ data Term
   | Pair Term Term      -- (a, b) — pair introduction
   | Fst Term            -- First projection
   | Snd Term            -- Second projection
+  | PathT Term Term Term   -- Path A a b — path type (identity type)
+  | Refl Term              -- refl a — reflexivity: Path A a a
+  | J Term Term Term Term Term Term  -- J A a C d b p — path eliminator (C binds 2 vars)
   deriving (Show, Eq)

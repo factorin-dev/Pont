@@ -31,6 +31,8 @@ quote lvl val = case val of
         vb = quote (lvl + 1) (instantiate cl (VNeutral (NVar lvl)))
     in Sigma va vb
   VPair a b      -> Pair (quote lvl a) (quote lvl b)
+  VPathT a t u   -> PathT (quote lvl a) (quote lvl t) (quote lvl u)
+  VRefl t        -> Refl (quote lvl t)
   VNeutral n     -> quoteNeutral lvl n
 
 -- | Quote a neutral value back to a term.
@@ -44,3 +46,9 @@ quoteNeutral lvl neu = case neu of
   NApp n v -> App (quoteNeutral lvl n) (quote lvl v)
   NFst n   -> Fst (quoteNeutral lvl n)
   NSnd n   -> Snd (quoteNeutral lvl n)
+  NJ tyA a c2 d b n ->
+    let freshY = VNeutral (NVar lvl)
+        freshP = VNeutral (NVar (lvl + 1))
+        cVal   = instantiate2 c2 freshY freshP
+        cTerm  = quote (lvl + 2) cVal
+    in J (quote lvl tyA) (quote lvl a) cTerm (quote lvl d) (quote lvl b) (quoteNeutral lvl n)

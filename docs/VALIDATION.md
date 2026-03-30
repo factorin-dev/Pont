@@ -182,6 +182,49 @@ Term generator expanded with `Sigma`, `Pair`, `Fst`, `Snd`. All 7 properties hol
 
 ### M2 Regression: 47/47 M1 tests still pass
 
+---
+
+## Milestone 3 Validation: Path Type + J Eliminator
+
+### M3 Audit (7 checks)
+
+| # | Check | Location | Status |
+|---|-------|----------|--------|
+| 1 | Path-Form: `Path A a b : U ℓ` where `A : U ℓ` | Check.hs: `inferUniverse ctx a` → aLvl, returns `VU aLvl` | ✓ Match |
+| 2 | Path-Intro: `refl a : Path (typeof a) a a` | Check.hs: infers `tTy`, returns `VPathT tTy tVal tVal` (endpoints equal) | ✓ Match |
+| 3 | J-β: `vJ _ _ _ d _ (VRefl _) = d` | Value.hs: pattern match on VRefl returns d directly | ✓ Match |
+| 4 | J typing: all 6 args checked, motive has 2 binders | Check.hs: ctx extended twice (y:A, p:Path A a y), C checked in ctx2 | ✓ Correct |
+| 5 | J result type: `C[y ↦ b, p ↦ q]` | Check.hs: `evalTerm (pVal : bVal : ctxEnv ctx) c` — index 0=q, index 1=b | ✓ Correct |
+| 6 | Conv: PathT/Refl/NJ all handled | Conv.hs: VPathT checks 3 components, VRefl checks arg, NJ checks all 6 + Closure2 | ✓ Complete |
+| 7 | Quote: PathT/Refl/NJ all handled | Quote.hs: VPathT/VRefl quoted directly; NJ instantiates Closure2 with 2 fresh vars | ✓ Correct |
+
+**Key design decision verified**: J's motive `C` is stored as `Closure2` (unevaluated term + env), not as a `Val`. This avoids wrong de Bruijn indexing when C has 2 pending binders. Instantiation via `instantiate2 (Closure2 env t) v1 v2 = evalTerm (v2 : v1 : env) t` correctly binds index 0 = p, index 1 = y.
+
+**d's type substitution**: `evalTerm (VRefl aVal : aVal : ctxEnv ctx) c` — index 0 → refl a (for p), index 1 → a (for y). ✓
+
+**Result type substitution**: `evalTerm (pVal : bVal : ctxEnv ctx) c` — index 0 → q (for p), index 1 → b (for y). ✓
+
+**No bugs found.**
+
+### M3 Test summary: 18/18 passed
+
+| Category | Count |
+|----------|-------|
+| Path formation (positive + negative) | 5 |
+| Refl | 2 |
+| J-β computation | 2 |
+| Derived operations (transport, symmetry) | 2 |
+| J type checking (positive + negative) | 2 |
+| Conversion | 3 |
+| Quote round-trip | 2 |
+| **Total** | **18** |
+
+### M3 Property tests: 7/7 passed
+
+Term generator expanded with `PathT`, `Refl`, `J` (J only at depth ≥ 3, motive has scope+2). All 7 properties hold over 1000+ random inputs including Path-type terms.
+
+### M3 Regression: 47/47 M1 + 24/24 M2 tests still pass
+
 ## Conclusion
 
-The Pont kernel (M1 + M2) is **correct** with respect to KERNEL.md for Π + Σ + Universe. No bugs found across either milestone. 78 total tests (47 M1 exhaustive + 24 M2 Σ + 7 property) all pass. The kernel is ready for Milestone 3 (Path types + J eliminator).
+The Pont kernel (M1 + M2 + M3) is **correct** with respect to KERNEL.md for Π + Σ + Path + J + Universe. No bugs found across any milestone. 96 total tests (47 M1 + 24 M2 + 18 M3 + 7 property) all pass. The kernel is ready for Milestone 4 (Univalence axiom + ua-β computation rule).

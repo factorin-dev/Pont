@@ -33,6 +33,8 @@ data Val
   | VLam Closure               -- Lambda: closure for body
   | VSigma Val Closure         -- Σ type: domain value + closure for codomain
   | VPair Val Val              -- Pair value: (a, b)
+  | VPathT Val Val Val         -- Path type value: VPathT A a b
+  | VRefl Val                  -- Reflexivity value: refl a
   | VNeutral Neutral           -- Stuck computation
   deriving (Show)
 
@@ -46,7 +48,21 @@ data Neutral
   | NApp Neutral Val           -- Application stuck on neutral function
   | NFst Neutral               -- fst stuck on neutral pair
   | NSnd Neutral               -- snd stuck on neutral pair
+  | NJ Val Val Closure2 Val Val Neutral  -- J stuck: (A, a, motive-closure2, d, b, neutral-path)
   deriving (Show)
+
+-- | A closure with 2 pending binders (used for J's motive).
+-- The motive C lives in context Γ, y : A, p : Path A a y.
+-- When instantiated: first arg = y (index 1), second arg = p (index 0).
+data Closure2 = Closure2 Env Term
+
+instance Show Closure2 where
+  show (Closure2 _ t) = "Closure2{" ++ show t ++ "}"
+
+-- | Instantiate a 2-binder closure with two values.
+-- First arg binds to index 1 (y), second arg binds to index 0 (p).
+instantiate2 :: Closure2 -> Val -> Val -> Val
+instantiate2 (Closure2 env t) v1 v2 = evalTerm (v2 : v1 : env) t
 
 -- | Instantiate a closure with a value.
 -- Implements substitution: given closure (env, t) and value v,
@@ -83,6 +99,17 @@ vSnd (VPair _ b) = b
 vSnd (VNeutral n) = VNeutral (NSnd n)
 vSnd _ = error "vSnd: not a pair"
 
+-- | J computation rule.
+--
+-- Implements: J-β (Section 6)
+--   J A a C d a (refl a) ≡ d
+-- On VRefl: reduces to base case d.
+-- On VNeutral: stuck, produces NJ.
+vJ :: Val -> Val -> Closure2 -> Val -> Val -> Val -> Val
+vJ _tyA _a _c d _b (VRefl _) = d
+vJ tyA a c d b (VNeutral n)  = VNeutral (NJ tyA a c d b n)
+vJ _ _ _ _ _ _                = error "vJ: invalid path argument"
+
 -- | Evaluate a term under an environment.
 --
 -- Implements: Evaluation (Section 10)
@@ -99,3 +126,8 @@ evalTerm env term = case term of
   Pair a b  -> VPair (evalTerm env a) (evalTerm env b)
   Fst t     -> vFst (evalTerm env t)
   Snd t     -> vSnd (evalTerm env t)
+  PathT a t u -> VPathT (evalTerm env a) (evalTerm env t) (evalTerm env u)
+  Refl t      -> VRefl (evalTerm env t)
+  J tyA a c d b p -> vJ (evalTerm env tyA) (evalTerm env a)
+                         (Closure2 env c) (evalTerm env d)
+                         (evalTerm env b) (evalTerm env p)

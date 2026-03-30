@@ -32,7 +32,12 @@ genTerm depth scope = frequency $
   [(2, Sigma <$> genTerm (depth-1) scope <*> genTerm (depth-1) (scope+1))] ++
   [(2, Pair <$> genTerm (depth-1) scope <*> genTerm (depth-1) scope)] ++
   [(1, Fst <$> genTerm (depth-1) scope)] ++
-  [(1, Snd <$> genTerm (depth-1) scope)]
+  [(1, Snd <$> genTerm (depth-1) scope)] ++
+  [(1, PathT <$> genTerm (depth-1) scope <*> genTerm (depth-1) scope <*> genTerm (depth-1) scope)] ++
+  [(1, Refl <$> genTerm (depth-1) scope)] ++
+  [(1, J <$> genTerm (depth-2) scope <*> genTerm (depth-2) scope
+         <*> genTerm (depth-2) (scope+2) <*> genTerm (depth-2) scope
+         <*> genTerm (depth-2) scope <*> genTerm (depth-2) scope) | depth >= 3]
 
 instance Arbitrary Term where
   arbitrary = sized $ \n -> genTerm (min n 5) 0
@@ -43,6 +48,9 @@ instance Arbitrary Term where
   shrink (Pair a b)  = [a, b] ++ [Pair a' b | a' <- shrink a] ++ [Pair a b' | b' <- shrink b]
   shrink (Fst t)     = [t] ++ [Fst t' | t' <- shrink t]
   shrink (Snd t)     = [t] ++ [Snd t' | t' <- shrink t]
+  shrink (PathT a t u) = [a, t, u] ++ [PathT a' t u | a' <- shrink a] ++ [PathT a t' u | t' <- shrink t] ++ [PathT a t u' | u' <- shrink u]
+  shrink (Refl t)    = [t] ++ [Refl t' | t' <- shrink t]
+  shrink (J a b c d e f) = [a,b,c,d,e,f] ++ [J a' b c d e f | a' <- shrink a] ++ [J a b' c d e f | b' <- shrink b] ++ [J a b c' d e f | c' <- shrink c] ++ [J a b c d' e f | d' <- shrink d] ++ [J a b c d e' f | e' <- shrink e] ++ [J a b c d e f' | f' <- shrink f]
   shrink (U n)       = [U n' | n' <- shrink n, n' >= 0]
   shrink (Var _)     = []
 
@@ -60,6 +68,9 @@ allVarsInScope bound (Sigma a b)   = allVarsInScope bound a && allVarsInScope (b
 allVarsInScope bound (Pair a b)    = allVarsInScope bound a && allVarsInScope bound b
 allVarsInScope bound (Fst t)       = allVarsInScope bound t
 allVarsInScope bound (Snd t)       = allVarsInScope bound t
+allVarsInScope bound (PathT a t u) = allVarsInScope bound a && allVarsInScope bound t && allVarsInScope bound u
+allVarsInScope bound (Refl t)      = allVarsInScope bound t
+allVarsInScope bound (J a b c d e f) = allVarsInScope bound a && allVarsInScope bound b && allVarsInScope (bound+2) c && allVarsInScope bound d && allVarsInScope bound e && allVarsInScope bound f
 
 -- | Check if a term is well-typed in the empty context.
 -- Used to guard properties that need well-typed terms (eval won't crash).

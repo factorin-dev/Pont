@@ -47,6 +47,13 @@ conv lvl v1 v2 = case (v1, v2) of
     let fresh = VNeutral (NVar lvl)
     in conv (lvl + 1) (vApp v fresh) (instantiate cl fresh)
 
+  -- | Implements: Congruence for Path types
+  (VPathT a1 t1 u1, VPathT a2 t2 u2) ->
+    conv lvl a1 a2 && conv lvl t1 t2 && conv lvl u1 u2
+
+  -- | Implements: Congruence for Refl
+  (VRefl t1, VRefl t2) -> conv lvl t1 t2
+
   -- | Implements: Congruence for Σ types (same structure as Π)
   (VSigma a1 cl1, VSigma a2 cl2) ->
     conv lvl a1 a2 &&
@@ -80,4 +87,13 @@ convNeutral lvl n1 n2 = case (n1, n2) of
   (NApp f1 a1, NApp f2 a2)   -> convNeutral lvl f1 f2 && conv lvl a1 a2
   (NFst m1, NFst m2)         -> convNeutral lvl m1 m2
   (NSnd m1, NSnd m2)         -> convNeutral lvl m1 m2
+  (NJ tyA1 a1 c1 d1 b1 p1, NJ tyA2 a2 c2 d2 b2 p2) ->
+    conv lvl tyA1 tyA2 &&
+    conv lvl a1 a2 &&
+    let freshY = VNeutral (NVar lvl)
+        freshP = VNeutral (NVar (lvl + 1))
+    in conv (lvl + 2) (instantiate2 c1 freshY freshP) (instantiate2 c2 freshY freshP) &&
+    conv lvl d1 d2 &&
+    conv lvl b1 b2 &&
+    convNeutral lvl p1 p2
   _                           -> False

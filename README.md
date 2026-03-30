@@ -8,13 +8,13 @@ Pont is a type checker — it takes a program and a type specification, and answ
 
 ## Status
 
-**Milestone 2** (current): Σ-types added. Can define dependent pairs, projections, and product types.
+**Milestone 3** (current): Path types + J eliminator. Can define identity types, reflexivity, and derive transport/symmetry/transitivity via J.
 
 Completed:
 - Milestone 1: Π-types + Universes
+- Milestone 2: Σ-types (dependent pairs)
 
 Upcoming:
-- Milestone 3: Path types + J eliminator
 - Milestone 4: Univalence axiom + ua-β computation rule
 - Milestone 5: Financial semantics layer (Token, Amount, equivalences)
 
