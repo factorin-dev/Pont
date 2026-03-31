@@ -33,6 +33,8 @@ quote lvl val = case val of
   VPair a b      -> Pair (quote lvl a) (quote lvl b)
   VPathT a t u   -> PathT (quote lvl a) (quote lvl t) (quote lvl u)
   VRefl t        -> Refl (quote lvl t)
+  VUa v          -> Ua (quote lvl v)
+  VUaInv v       -> UaInv (quote lvl v)
   VNeutral n     -> quoteNeutral lvl n
 
 -- | Quote a neutral value back to a term.
@@ -52,3 +54,6 @@ quoteNeutral lvl neu = case neu of
         cVal   = instantiate2 c2 freshY freshP
         cTerm  = quote (lvl + 2) cVal
     in J (quote lvl tyA) (quote lvl a) cTerm (quote lvl d) (quote lvl b) (quoteNeutral lvl n)
+  NUa n      -> Ua (quoteNeutral lvl n)
+  NUaInv n   -> UaInv (quoteNeutral lvl n)
+  NStuck v   -> quote lvl v  -- read back the wrapped value

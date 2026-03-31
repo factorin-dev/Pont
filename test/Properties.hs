@@ -37,7 +37,9 @@ genTerm depth scope = frequency $
   [(1, Refl <$> genTerm (depth-1) scope)] ++
   [(1, J <$> genTerm (depth-2) scope <*> genTerm (depth-2) scope
          <*> genTerm (depth-2) (scope+2) <*> genTerm (depth-2) scope
-         <*> genTerm (depth-2) scope <*> genTerm (depth-2) scope) | depth >= 3]
+         <*> genTerm (depth-2) scope <*> genTerm (depth-2) scope) | depth >= 3] ++
+  [(1, Ua <$> genTerm (depth-1) scope)] ++
+  [(1, UaInv <$> genTerm (depth-1) scope)]
 
 instance Arbitrary Term where
   arbitrary = sized $ \n -> genTerm (min n 5) 0
@@ -51,6 +53,8 @@ instance Arbitrary Term where
   shrink (PathT a t u) = [a, t, u] ++ [PathT a' t u | a' <- shrink a] ++ [PathT a t' u | t' <- shrink t] ++ [PathT a t u' | u' <- shrink u]
   shrink (Refl t)    = [t] ++ [Refl t' | t' <- shrink t]
   shrink (J a b c d e f) = [a,b,c,d,e,f] ++ [J a' b c d e f | a' <- shrink a] ++ [J a b' c d e f | b' <- shrink b] ++ [J a b c' d e f | c' <- shrink c] ++ [J a b c d' e f | d' <- shrink d] ++ [J a b c d e' f | e' <- shrink e] ++ [J a b c d e f' | f' <- shrink f]
+  shrink (Ua t)    = [t] ++ [Ua t' | t' <- shrink t]
+  shrink (UaInv t) = [t] ++ [UaInv t' | t' <- shrink t]
   shrink (U n)       = [U n' | n' <- shrink n, n' >= 0]
   shrink (Var _)     = []
 
@@ -71,6 +75,8 @@ allVarsInScope bound (Snd t)       = allVarsInScope bound t
 allVarsInScope bound (PathT a t u) = allVarsInScope bound a && allVarsInScope bound t && allVarsInScope bound u
 allVarsInScope bound (Refl t)      = allVarsInScope bound t
 allVarsInScope bound (J a b c d e f) = allVarsInScope bound a && allVarsInScope bound b && allVarsInScope (bound+2) c && allVarsInScope bound d && allVarsInScope bound e && allVarsInScope bound f
+allVarsInScope bound (Ua t)        = allVarsInScope bound t
+allVarsInScope bound (UaInv t)     = allVarsInScope bound t
 
 -- | Check if a term is well-typed in the empty context.
 -- Used to guard properties that need well-typed terms (eval won't crash).

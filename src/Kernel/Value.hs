@@ -35,6 +35,8 @@ data Val
   | VPair Val Val              -- Pair value: (a, b)
   | VPathT Val Val Val         -- Path type value: VPathT A a b
   | VRefl Val                  -- Reflexivity value: refl a
+  | VUa Val                    -- ua applied to equivalence value
+  | VUaInv Val                 -- ua⁻¹ applied to path value
   | VNeutral Neutral           -- Stuck computation
   deriving (Show)
 
@@ -49,6 +51,9 @@ data Neutral
   | NFst Neutral               -- fst stuck on neutral pair
   | NSnd Neutral               -- snd stuck on neutral pair
   | NJ Val Val Closure2 Val Val Neutral  -- J stuck: (A, a, motive-closure2, d, b, neutral-path)
+  | NUa Neutral                -- ua stuck on neutral equivalence
+  | NUaInv Neutral             -- ua⁻¹ stuck on neutral path
+  | NStuck Val                 -- canonical value treated as stuck (for projections on opaque values)
   deriving (Show)
 
 -- | A closure with 2 pending binders (used for J's motive).
@@ -88,7 +93,7 @@ vApp _            _   = error "vApp: not a function"
 vFst :: Val -> Val
 vFst (VPair a _) = a
 vFst (VNeutral n) = VNeutral (NFst n)
-vFst _ = error "vFst: not a pair"
+vFst v = VNeutral (NFst (NStuck v))  -- stuck: can't project opaque value (e.g., VUaInv)
 
 -- | Second projection.
 --
@@ -97,18 +102,33 @@ vFst _ = error "vFst: not a pair"
 vSnd :: Val -> Val
 vSnd (VPair _ b) = b
 vSnd (VNeutral n) = VNeutral (NSnd n)
-vSnd _ = error "vSnd: not a pair"
+vSnd v = VNeutral (NSnd (NStuck v))  -- stuck: can't project opaque value
+
+-- | ua on a value.
+-- Concrete equivalence → VUa. Neutral → stuck NUa.
+vUa :: Val -> Val
+vUa (VNeutral n) = VNeutral (NUa n)
+vUa v            = VUa v
+
+-- | ua⁻¹ on a value.
+-- Concrete path → VUaInv. Neutral → stuck NUaInv.
+vUaInv :: Val -> Val
+vUaInv (VNeutral n) = VNeutral (NUaInv n)
+vUaInv v            = VUaInv v
 
 -- | J computation rule.
 --
--- Implements: J-β (Section 6)
---   J A a C d a (refl a) ≡ d
--- On VRefl: reduces to base case d.
--- On VNeutral: stuck, produces NJ.
+-- Implements: J-β (Section 6) and ua-β (Section 8)
+--   J A a C d a (refl a) ≡ d                        (J-β)
+--   transport (λ X . X) (ua e) a ≡ (fst e) a        (ua-β)
+--
+-- ua-β fires when the path argument is VUa equiv:
+-- applies the forward function (fst equiv) to d.
 vJ :: Val -> Val -> Closure2 -> Val -> Val -> Val -> Val
-vJ _tyA _a _c d _b (VRefl _) = d
-vJ tyA a c d b (VNeutral n)  = VNeutral (NJ tyA a c d b n)
-vJ _ _ _ _ _ _                = error "vJ: invalid path argument"
+vJ _tyA _a _c d _b (VRefl _)   = d                              -- J-β
+vJ _tyA _a _c d _b (VUa equiv) = vApp (vFst equiv) d            -- ua-β
+vJ tyA a c d b (VNeutral n)     = VNeutral (NJ tyA a c d b n)   -- stuck
+vJ _ _ _ _ _ _                   = error "vJ: invalid path argument"
 
 -- | Evaluate a term under an environment.
 --
@@ -131,3 +151,5 @@ evalTerm env term = case term of
   J tyA a c d b p -> vJ (evalTerm env tyA) (evalTerm env a)
                          (Closure2 env c) (evalTerm env d)
                          (evalTerm env b) (evalTerm env p)
+  Ua e      -> vUa (evalTerm env e)
+  UaInv p   -> vUaInv (evalTerm env p)

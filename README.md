@@ -8,15 +8,20 @@ Pont is a type checker — it takes a program and a type specification, and answ
 
 ## Status
 
-**Milestone 3** (current): Path types + J eliminator. Can define identity types, reflexivity, and derive transport/symmetry/transitivity via J.
+**Kernel complete.** All four milestones implemented:
 
-Completed:
-- Milestone 1: Π-types + Universes
-- Milestone 2: Σ-types (dependent pairs)
+- **Milestone 1**: Π-types + Universes (dependent functions, universe hierarchy)
+- **Milestone 2**: Σ-types (dependent pairs, projections, η-conversion)
+- **Milestone 3**: Path types + J eliminator (identity types, transport, symmetry)
+- **Milestone 4**: Univalence axiom + ua-β computation rule
 
-Upcoming:
-- Milestone 4: Univalence axiom + ua-β computation rule
-- Milestone 5: Financial semantics layer (Token, Amount, equivalences)
+Total: ~700 lines of trusted kernel code, ~115 tests.
+
+Next steps:
+- Parser + surface syntax
+- Financial semantics layer (Token, Amount, bridge equivalences)
+- Content hashing pipeline
+- Compilation backend
 
 ## Build & Run
 

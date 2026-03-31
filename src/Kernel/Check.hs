@@ -21,6 +21,9 @@ data TypeError
   | CannotInferLambda
   | NotASigma Val
   | CannotInferPair
+  | NotAnEquivalence Val
+  | NotAPath Val
+  | NotAUniversePath Val
   deriving (Show)
 
 -- | Infer the type of a term (returns a value).
@@ -153,6 +156,42 @@ infer ctx term = case term of
     let pVal     = evalTerm (ctxEnv ctx) p
         resultTy = evalTerm (pVal : bVal : ctxEnv ctx) c
     Right resultTy
+
+  -- | Implements: ua (Section 8)
+  --   Γ ⊢ e : A ≃ B  (Σ (f : A → B) . isEquiv f)
+  --  ──────────────────────────────────────────────
+  --   Γ ⊢ ua e : Path (U ℓ) A B
+  --
+  -- Prototype: checks e has Σ shape with function first component.
+  -- Universe level hardcoded to U 0 (sufficient for prototype).
+  Ua e -> do
+    eTy <- infer ctx e
+    case eTy of
+      VSigma fTy _ -> case fTy of
+        VPi domA codBCl ->
+          let bVal = instantiate codBCl (VNeutral (NVar (ctxLvl ctx)))
+          in Right (VPathT (VU 0) domA bVal)
+        _ -> Left (NotAnEquivalence eTy)
+      _ -> Left (NotAnEquivalence eTy)
+
+  -- | Implements: ua⁻¹ (Section 8)
+  --   Γ ⊢ p : Path (U ℓ) A B
+  --  ──────────────────────────────
+  --   Γ ⊢ ua⁻¹ p : A ≃ B
+  --
+  -- Prototype: returns simplified Σ (f : A → B) . (B → A).
+  UaInv p -> do
+    pTy <- infer ctx p
+    case pTy of
+      VPathT (VU _) aVal bVal ->
+        let -- A → B
+            fwdTy = VPi aVal (Closure [bVal] (Var 1))
+            -- Σ (f : A→B) . (B→A)
+            -- Under sigma binder for f: env=[aVal,bVal], Var 2=B, Var 2=A after pi binder
+            equivTy = VSigma fwdTy (Closure [aVal, bVal] (Pi (Var 2) (Var 2)))
+        in Right equivTy
+      VPathT _ _ _ -> Left (NotAUniversePath pTy)
+      _ -> Left (NotAPath pTy)
 
   -- | Lambda cannot be inferred — it must be checked against a known Π type.
   Lam _ -> Left CannotInferLambda

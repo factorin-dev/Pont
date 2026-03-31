@@ -54,6 +54,10 @@ conv lvl v1 v2 = case (v1, v2) of
   -- | Implements: Congruence for Refl
   (VRefl t1, VRefl t2) -> conv lvl t1 t2
 
+  -- | Implements: Congruence for ua / ua⁻¹ (Section 8)
+  (VUa e1, VUa e2)         -> conv lvl e1 e2
+  (VUaInv p1, VUaInv p2)   -> conv lvl p1 p2
+
   -- | Implements: Congruence for Σ types (same structure as Π)
   (VSigma a1 cl1, VSigma a2 cl2) ->
     conv lvl a1 a2 &&
@@ -96,4 +100,7 @@ convNeutral lvl n1 n2 = case (n1, n2) of
     conv lvl d1 d2 &&
     conv lvl b1 b2 &&
     convNeutral lvl p1 p2
+  (NUa e1, NUa e2)           -> convNeutral lvl e1 e2
+  (NUaInv q1, NUaInv q2)     -> convNeutral lvl q1 q2
+  (NStuck w1, NStuck w2)     -> conv lvl w1 w2
   _                           -> False

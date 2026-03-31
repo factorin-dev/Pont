@@ -4,6 +4,7 @@
 -- Milestone 1: U, Var, Π, λ, App.
 -- Milestone 2: Σ, Pair, Fst, Snd.
 -- Milestone 3: Path, Refl, J.
+-- Milestone 4: Ua, UaInv (univalence).
 --
 -- Convention: de Bruijn index 0 = most recently bound variable.
 -- Levels are used in the value domain (Value.hs); indices here.
@@ -43,4 +44,6 @@ data Term
   | PathT Term Term Term   -- Path A a b — path type (identity type)
   | Refl Term              -- refl a — reflexivity: Path A a a
   | J Term Term Term Term Term Term  -- J A a C d b p — path eliminator (C binds 2 vars)
+  | Ua Term            -- ua e : (A ≃ B) → Path (U ℓ) A B
+  | UaInv Term         -- ua⁻¹ p : Path (U ℓ) A B → (A ≃ B)
   deriving (Show, Eq)

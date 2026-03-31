@@ -41,6 +41,7 @@ test-suite pont-test
     Exhaustive
     Sigma
     PathTests
+    Univalence
     Properties
   build-depends:
     base >= 4.17 && < 5,
